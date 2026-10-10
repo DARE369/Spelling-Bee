@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spelling Bee Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#17130b; --bg2:#211a0e; --panel:#2a2112; --panel2:#33281599; --line:#4a3a1f;
+  --honey:#ffb81c; --honey2:#ffd166; --ink:#fff7e6; --muted:#c9b48a;
+  --g4:#4cc9f0; --g7:#c77dff; --ok:#3ddc84; --bad:#ff5d5d; --bonus:#ffb81c; --skip:#8a7a5c;
+  --r:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:radial-gradient(1200px 600px at 20% -10%,#3a2a0a 0%,transparent 60%),radial-gradient(900px 500px at 110% 110%,#2d1d05 0%,transparent 60%),var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.06;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='%23ffb81c' stroke-width='2'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='%23ffb81c' stroke-width='2'/%3E%3C/svg%3E");}
+h1,h2,h3,.fred{font-family:Fredoka,Inter,sans-serif}
+button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:10px 14px;background:var(--panel);color:var(--ink);border:1px solid var(--line);transition:transform .08s,background .15s,opacity .15s}
+button:hover{background:#3b2e18}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.35;cursor:not-allowed}
+.btn-honey{background:linear-gradient(180deg,var(--honey2),var(--honey));color:#2a1a00;border:0;font-weight:700}
+.btn-honey:hover{background:var(--honey2)}
+.btn-ok{background:var(--ok);color:#06210f;border:0;font-weight:700}
+.btn-bad{background:var(--bad);color:#2a0606;border:0;font-weight:700}
+.btn-ghost{background:transparent}
+input,select{font:inherit;background:#120e07;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.kbd{font-size:11px;opacity:.65;border:1px solid currentColor;border-radius:5px;padding:0 4px;margin-left:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:#ffffff14}
+.g4{color:var(--g4)} .g7{color:var(--g7)}
+.pill.g4{background:#4cc9f022} .pill.g7{background:#c77dff22}
+.hidden{display:none!important}
+
+/* ================= HOST ================= */
+.host{display:grid;grid-template-rows:auto 1fr;height:100%}
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);background:#1b150bcc;backdrop-filter:blur(6px);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:Fredoka;font-size:22px;font-weight:700}
+.brand .hex{width:34px;height:38px;background:var(--honey);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:grid;place-items:center;color:#2a1a00;font-size:18px}
+.topbar .sp{flex:1}
+.privacy{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 10px;border-radius:12px;border:1px solid var(--line)}
+.privacy.on{border-color:var(--ok);color:var(--ok)}
+.privacy.off{border-color:var(--bad);color:var(--bad)}
+.main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;padding:16px;overflow:auto}
+@media (max-width:1000px){.main{grid-template-columns:1fr}}
+.card{background:linear-gradient(180deg,#2c2313,#231b0e);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card h3{margin:0 0 10px;font-size:15px;color:var(--muted);font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+.turnbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.turnbar .who{font-family:Fredoka;font-size:24px;font-weight:600}
+.phase{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.06em}
+.phase.spell{background:#4cc9f033;color:var(--g4)} .phase.bonus{background:#ffb81c33;color:var(--honey)} .phase.reveal{background:#3ddc8433;color:var(--ok)} .phase.idle{background:#ffffff14;color:var(--muted)}
+.secretWrap{position:relative;border-radius:14px;overflow:hidden;border:1px dashed #6b5428}
+.secret{padding:16px;transition:filter .15s}
+.secretWrap.locked .secret{filter:blur(16px) saturate(.4);user-select:none}
+.peekCover{position:absolute;inset:0;display:none;place-items:center;text-align:center;background:#120e07aa;gap:6px}
+.secretWrap.locked .peekCover{display:grid}
+.peekBtn{background:var(--honey);color:#2a1a00;border:0;font-weight:700;padding:14px 22px;border-radius:14px;user-select:none;-webkit-user-select:none;touch-action:none}
+.theWord{font-family:Fredoka;font-size:52px;font-weight:700;letter-spacing:.04em;color:var(--honey2);line-height:1.1;word-break:break-word}
+.meta{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;margin-top:12px;font-size:15px}
+.meta div:nth-child(odd){color:var(--muted);font-size:13px;padding-top:2px}
+.say{font-family:Fredoka;font-size:20px;color:var(--ink)}
+.empty{padding:36px 10px;text-align:center;color:var(--muted)}
+.timerRow{display:flex;align-items:center;gap:16px;margin:14px 0}
+.tbig{font-family:Fredoka;font-size:46px;font-weight:700;min-width:110px;font-variant-numeric:tabular-nums}
+.tbar{flex:1;height:14px;border-radius:99px;background:#120e07;overflow:hidden;border:1px solid var(--line)}
+.tbar i{display:block;height:100%;background:linear-gradient(90deg,var(--ok),var(--honey));transition:width .2s linear}
+.tbar.warn i{background:var(--bad)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row > button{flex:1;min-width:120px}
+.bigbtns button{padding:16px;font-size:17px}
+.reveals{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.reveals button.on{background:#4cc9f033;border-color:var(--g4);color:var(--g4)}
+.small{font-size:12px;color:var(--muted)}
+.scores{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sc{border-radius:14px;padding:14px;border:2px solid var(--line);background:#1a140b;position:relative}
+.sc.active{border-color:var(--honey);box-shadow:0 0 0 4px #ffb81c22}
+.sc .nm{font-family:Fredoka;font-size:20px;font-weight:600}
+.sc .pts{font-family:Fredoka;font-size:48px;font-weight:700;color:var(--honey2);line-height:1}
+.sc .st{font-size:12px;color:var(--muted);margin-top:6px}
+.sc .adj{position:absolute;right:10px;top:10px;display:flex;gap:4px}
+.sc .adj button{padding:2px 9px;font-size:14px}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.boardHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 8px;flex-wrap:wrap}
+.tile{position:relative;text-align:left;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;background:#1a140b;border:1px solid var(--line);min-height:44px;display:flex;align-items:center;gap:8px}
+.tile .n{font-size:11px;color:var(--muted);min-width:18px}
+.tile.g4{border-left:4px solid var(--g4)} .tile.g7{border-left:4px solid var(--g7)}
+.tile.used{opacity:.45;text-decoration:line-through;text-decoration-thickness:2px}
+.tile.used::after{position:absolute;right:8px;font-size:14px;text-decoration:none}
+.tile.correct::after{content:"✓";color:var(--ok)} .tile.bonus::after{content:"★";color:var(--bonus)} .tile.missed::after{content:"✗";color:var(--bad)} .tile.skipped::after{content:"⤼";color:var(--skip)}
+.tile.live{opacity:1;text-decoration:none;border-color:var(--honey);box-shadow:0 0 0 3px #ffb81c44;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px #ffb81c11}}
+.tile .ws{color:var(--ink)}
+.masked .tile .ws{filter:blur(6px)}
+.log{max-height:260px;overflow:auto;font-size:13px;display:flex;flex-direction:column;gap:6px}
+.log div{padding:7px 10px;border-radius:9px;background:#1a140b;border-left:3px solid var(--line)}
+.log .ok{border-color:var(--ok)} .log .bad{border-color:var(--bad)} .log .bon{border-color:var(--bonus)}
+.modalBg{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:50;padding:16px}
+.modal{background:var(--bg2);border:1px solid var(--line);border-radius:20px;padding:22px;width:min(640px,100%);max-height:92vh;overflow:auto}
+.modal h2{margin:0 0 4px;font-size:28px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.grid2,.scores{grid-template-columns:1fr}}
+.howto{font-size:14px;line-height:1.55;color:#e8dcc2;background:#120e07;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.howto b{color:var(--honey2)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--honey);color:#2a1a00;padding:10px 16px;border-radius:12px;font-weight:700;z-index:60;box-shadow:0 10px 30px #0008}
+
+/* ================= STAGE ================= */
+.stage{height:100%;display:grid;grid-template-rows:auto 1fr auto;padding:22px 28px;gap:18px;overflow:hidden}
+.stHead{display:flex;align-items:center;gap:16px}
+.stHead .brand{font-size:30px}
+.stHead .sp{flex:1}
+.stProg{font-family:Fredoka;font-size:18px;color:var(--muted)}
+.stPlayers{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:stretch}
+.stP{border-radius:22px;padding:18px 22px;background:linear-gradient(180deg,#2c2313,#1d160b);border:3px solid var(--line);display:flex;align-items:center;gap:16px;transition:all .3s}
+.stP.active{border-color:var(--honey);box-shadow:0 0 0 8px #ffb81c1f,0 20px 50px #0006;transform:translateY(-3px)}
+.stP.bonusTurn{border-color:var(--honey);animation:glow 1s infinite alternate}
+@keyframes glow{to{box-shadow:0 0 0 12px #ffb81c33}}
+.stP .av{width:64px;height:72px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:grid;place-items:center;font-family:Fredoka;font-size:28px;font-weight:700;color:#1a1000}
+.stP .info{flex:1;min-width:0}
+.stP .nm{font-family:Fredoka;font-size:30px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stP .pts{font-family:Fredoka;font-size:64px;font-weight:700;color:var(--honey2);line-height:1}
+.vs{align-self:center;font-family:Fredoka;font-size:28px;color:var(--muted)}
+.stCenter{display:grid;grid-template-columns:auto 1fr;gap:34px;align-items:center;min-height:0}
+.ring{position:relative;width:300px;height:300px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .tnum{position:absolute;inset:0;display:grid;place-items:center;font-family:Fredoka;font-size:96px;font-weight:700;font-variant-numeric:tabular-nums}
+.ring .tlbl{position:absolute;bottom:62px;width:100%;text-align:center;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.ring.warn .tnum{color:var(--bad);animation:beat .5s infinite alternate}
+@keyframes beat{to{transform:scale(1.06)}}
+.banner{font-family:Fredoka;font-size:44px;font-weight:700;line-height:1.1;margin-bottom:6px}
+.banner .hl{color:var(--honey2)}
+.subban{font-size:20px;color:var(--muted);margin-bottom:18px}
+.clues{display:grid;gap:12px}
+.clue{background:#1a140bcc;border:1px solid var(--line);border-radius:16px;padding:14px 18px;animation:pop .35s ease-out}
+.clue .k{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--honey);font-weight:700;margin-bottom:4px}
+.clue .v{font-size:24px;line-height:1.35}
+.blank{display:inline-block;min-width:120px;border-bottom:4px solid var(--honey);margin:0 4px}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}}
+.reveal .letters{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.reveal .lt{width:64px;height:74px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:var(--honey);color:#2a1a00;display:grid;place-items:center;font-family:Fredoka;font-size:38px;font-weight:700;text-transform:uppercase;animation:flip .5s both}
+@keyframes flip{from{opacity:0;transform:rotateY(90deg) translateY(-20px)}}
+.resultTag{display:inline-block;font-family:Fredoka;font-size:26px;font-weight:700;padding:6px 18px;border-radius:999px;margin-bottom:10px}
+.resultTag.correct{background:#3ddc8433;color:var(--ok)} .resultTag.bonus{background:#ffb81c33;color:var(--honey)} .resultTag.missed{background:#ff5d5d33;color:var(--bad)}
+.rgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rgrid .clue .v{font-size:19px}
+.hive{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.hc{width:34px;height:38px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:grid;place-items:center;font-size:12px;font-weight:700;background:#3a2d16;color:var(--muted)}
+.hc.g4{background:#4cc9f033;color:var(--g4)} .hc.g7{background:#c77dff33;color:var(--g7)}
+.hc.correct{background:var(--ok);color:#06210f} .hc.bonus{background:var(--honey);color:#2a1a00} .hc.missed{background:var(--bad);color:#2a0606} .hc.skipped{background:#5a4d35;color:#2a2010}
+.hc.live{background:#fff;color:#000;animation:beat .6s infinite alternate}
+.legend{display:flex;gap:16px;justify-content:center;font-size:13px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:var(--c)}
+.waiting{text-align:center}
+.waiting .big{font-family:Fredoka;font-size:56px;font-weight:700}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:40}
+.confetti i{position:absolute;top:-20px;width:12px;height:14px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+.final{text-align:center}
+.final .crown{font-size:90px}
+@media (max-width:900px){.stCenter{grid-template-columns:1fr;justify-items:center}.ring{width:200px;height:200px}.ring .tnum{font-size:64px}.rgrid{grid-template-columns:1fr}.stage{overflow:auto}.stP .pts{font-size:42px}.banner{font-size:30px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="words.js"></script>
+<script>
+(() => {
+"use strict";
+const WORDS = window.WORDS;
+const KEY = "mbBee.state.v1";
+const IS_STAGE = location.hash === "#stage";
+const bc = "BroadcastChannel" in window ? new BroadcastChannel("mbBee") : null;
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const app = $("#app");
+
+function blankSentence(sent, word) {
+  return esc(sent).replace(new RegExp("\\b" + word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi"), '<span class="blank"></span>');
+}
+function confetti(n = 70) {
+  const box = document.createElement("div"); box.className = "confetti";
+  const cols = ["#ffb81c","#ffd166","#3ddc84","#4cc9f0","#c77dff","#fff"];
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement("i");
+    p.style.left = Math.random() * 100 + "vw";
+    p.style.background = cols[i % cols.length];
+    p.style.animationDuration = 1.8 + Math.random() * 1.8 + "s";
+    p.style.animationDelay = Math.random() * .5 + "s";
+    box.appendChild(p);
+  }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 4200);
+}
+
+/* ---------------- sound (host only) ---------------- */
+let actx;
+function tone(freq, dur = .12, type = "sine", vol = .15, when = 0) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq; o.connect(g); g.connect(actx.destination);
+    const t = actx.currentTime + when;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.start(t); o.stop(t + dur + .02);
+  } catch (e) {}
+}
+const sfx = {
+  tick: () => tone(880, .07, "square", .06),
+  ok: () => { tone(660,.12,"triangle",.2); tone(880,.12,"triangle",.2,.12); tone(1320,.25,"triangle",.2,.24); },
+  bad: () => { tone(200,.25,"sawtooth",.12); tone(150,.35,"sawtooth",.12,.2); },
+  buzz: () => tone(120, .6, "square", .12),
+  start: () => { tone(523,.1,"triangle",.15); tone(784,.15,"triangle",.15,.1); }
+};
+function speak(text) {
+  if (!("speechSynthesis" in window)) return toast("Speech not supported in this browser");
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const vs = speechSynthesis.getVoices();
+  u.voice = vs.find(v => v.lang === "en-CA") || vs.find(v => v.lang === "en-US") || vs.find(v => /^en/.test(v.lang)) || null;
+  u.lang = "en-CA"; u.rate = .85;
+  speechSynthesis.speak(u);
+}
+function toast(msg) {
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+}
+
+/* =================================================================== */
+/*                               STAGE                                 */
+/* =================================================================== */
+if (IS_STAGE) {
+  document.title = "Spelling Bee — Stage";
+  let M = null, lastRevealKey = "";
+  const accept = m => { if (m && m.type === "model") { M = m.model; renderStage(); } };
+  if (bc) bc.onmessage = e => accept(e.data);
+  window.addEventListener("message", e => accept(e.data));
+  window.addEventListener("storage", e => { if (e.key === KEY + ".stage") try { accept({type:"model", model: JSON.parse(e.newValue)}); } catch (_) {} });
+  try { const s = localStorage.getItem(KEY + ".stage"); if (s) M = JSON.parse(s); } catch (_) {}
+  try { window.opener && window.opener.postMessage({type: "hello"}, "*"); } catch (_) {}
+  if (bc) bc.postMessage({type: "hello"});
+
+  function renderStage() {
+    if (!M) { app.innerHTML = `<div class="stage"><div class="waiting" style="grid-row:2;align-self:center"><div class="big">🐝 Waiting for host…</div><p class="small">Open this screen from the Host Console.</p></div></div>`; return; }
+    const P = M.players, c = M.cur;
+    const activeIdx = c ? c.speller : M.turn;
+    const pCard = (p, i) => `
+      <div class="stP ${i === activeIdx && (!c || c.phase !== "reveal") ? (c && c.phase === "bonus" ? "bonusTurn" : "active") : ""}">
+        <div class="av" style="background:${p.grade == 4 ? "var(--g4)" : "var(--g7)"}">${esc(p.name[0] || "?")}</div>
+        <div class="info"><div class="nm">${esc(p.name)}</div><span class="pill g${p.grade}">Grade ${p.grade}</span></div>
+        <div class="pts">${p.score}</div>
+      </div>`;
+    let center = "";
+    if (M.finished) {
+      const w = P[0].score === P[1].score ? null : (P[0].score > P[1].score ? P[0] : P[1]);
+      center = `<div class="final" style="grid-column:1/-1"><div class="crown">🏆</div><div class="banner">${w ? `<span class="hl">${esc(w.name)}</span> wins the Bee!` : "It's a tie — two champions!"}</div><div class="subban">Final score ${P[0].score} – ${P[1].score}. Great spelling, everyone!</div></div>`;
+    } else if (!c) {
+      const p = P[M.turn];
+      center = `<div class="waiting" style="grid-column:1/-1"><div class="subban">Up next</div><div class="banner"><span class="hl">${esc(p.name)}</span>, please step up to the microphone 🎤</div><div class="subban">Listen carefully. You may ask for the definition, a sentence, the part of speech or the origin.</div></div>`;
+    } else if (c.phase === "reveal") {
+      const r = c.reveal, res = c.result;
+      const tag = res.type === "correct" ? `<span class="resultTag correct">✓ Correct — ${esc(P[res.by].name)} +${M.pts.correct}</span>`
+        : res.type === "bonus" ? `<span class="resultTag bonus">★ Bonus steal — ${esc(P[res.by].name)} +${M.pts.bonus}</span>`
+        : `<span class="resultTag missed">✗ Not spelled correctly</span>`;
+      center = `<div class="reveal" style="grid-column:1/-1;min-height:0;overflow:auto">
+        ${tag}
+        <div class="letters">${[...r.w].map((ch, i) => `<div class="lt" style="animation-delay:${i * 70}ms">${esc(ch)}</div>`).join("")}</div>
+        <div class="rgrid">
+          <div class="clue"><div class="k">Say it</div><div class="v">${esc(r.say)} &nbsp;·&nbsp; ${esc(r.syl)}</div></div>
+          <div class="clue"><div class="k">Part of speech</div><div class="v">${esc(r.pos)}</div></div>
+          <div class="clue"><div class="k">Meaning</div><div class="v">${esc(r.def)}</div></div>
+          <div class="clue"><div class="k">In a sentence</div><div class="v">${esc(r.sent)}</div></div>
+          <div class="clue"><div class="k">Origin</div><div class="v">${esc(r.origin)}</div></div>
+          <div class="clue"><div class="k">Spelling tip 💡</div><div class="v">${esc(r.tip)}</div></div>
+        </div></div>`;
+    } else {
+      const sp = P[c.speller], bonus = c.phase === "bonus";
+      const clues = [
+        ["Part of speech", c.show.pos], ["Definition", c.show.def], ["Used in a sentence", c.show.sent], ["Language of origin", c.show.origin]
+      ].filter(x => x[1]).map(([k, v]) => `<div class="clue"><div class="k">${k}</div><div class="v">${k === "Used in a sentence" ? v : esc(v)}</div></div>`).join("");
+      center = `
+        <div class="ring" id="ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="#3a2d16" stroke-width="10"/><circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="var(--honey)" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="0"/></svg><div class="tnum" id="tnum">--</div><div class="tlbl">${c.paused ? "paused" : "seconds"}</div></div>
+        <div>
+          <div class="subban">Word #${c.num} &nbsp;<span class="pill g${c.grade}">Grade ${c.grade} word</span></div>
+          <div class="banner">${bonus ? `⭐ BONUS! <span class="hl">${esc(sp.name)}</span> can steal it!` : `<span class="hl">${esc(sp.name)}</span>, spell the word`}</div>
+          <div class="subban">${bonus ? "Spell it correctly for a bonus point." : "Say the word, spell it letter by letter, then say it again."}</div>
+          <div class="clues">${clues || `<div class="small">Ask the pronouncer for the definition, a sentence, the part of speech or the origin.</div>`}</div>
+        </div>`;
+    }
+    const hive = M.board.map((s, i) => `<div class="hc g${WORDS[i].g} ${s || ""}">${i + 1}</div>`).join("");
+    app.innerHTML = `<div class="stage">
+      <div>
+        <div class="stHead"><div class="brand"><div class="hex">🐝</div>Spelling Bee</div><div class="sp"></div><div class="stProg">${M.doneCount} / ${WORDS.length} words used</div></div>
+        <div class="stPlayers" style="margin-top:16px">${pCard(P[0], 0)}<div class="vs">VS</div>${pCard(P[1], 1)}</div>
+      </div>
+      <div class="stCenter">${center}</div>
+      <div><div class="hive">${hive}</div>
+        <div class="legend"><span style="--c:var(--g4)">Grade 4</span><span style="--c:var(--g7)">Grade 7</span><span style="--c:var(--ok)">Correct</span><span style="--c:var(--honey)">Bonus steal</span><span style="--c:var(--bad)">Missed</span><span style="--c:#5a4d35">Skipped</span></div></div>
+    </div>`;
+    if (c && c.phase === "reveal") {
+      const k = c.num + ":" + c.result.type;
+      if (k !== lastRevealKey && c.result.type !== "missed") confetti();
+      lastRevealKey = k;
+    }
+    if (M.finished && lastRevealKey !== "final") { lastRevealKey = "final"; confetti(160); }
+  }
+  function stageTick() {
+    if (M && M.cur && (M.cur.phase === "spell" || M.cur.phase === "bonus")) {
+      const c = M.cur, rem = Math.max(0, c.paused ? c.remaining : c.endsAt - Date.now());
+      const secs = Math.ceil(rem / 1000), frac = rem / (c.limit * 1000);
+      const t = $("#tnum"), a = $("#arc"), ring = $("#ring");
+      if (t) {
+        t.textContent = secs;
+        a.setAttribute("stroke-dashoffset", String(326.7 * (1 - Math.max(0, Math.min(1, frac)))));
+        a.setAttribute("stroke", secs <= 5 ? "var(--bad)" : secs <= 10 ? "var(--honey)" : "var(--ok)");
+        ring.classList.toggle("warn", secs <= 5 && !c.paused);
+      }
+    }
+    requestAnimationFrame(stageTick);
+  }
+  renderStage(); stageTick();
+  return;
+}
+
+/* =================================================================== */
+/*                               HOST                                  */
+/* =================================================================== */
+let S = null, stageWin = null, peeking = false, lastBeep = -1;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (_) {}
+
+function newGame(cfg) {
+  return {
+    players: [
+      {name: cfg.n1, grade: cfg.g1, score: 0, correct: 0, bonus: 0, missed: 0},
+      {name: cfg.n2, grade: cfg.g2, score: 0, correct: 0, bonus: 0, missed: 0}
+    ],
+    turn: cfg.first, timeLimit: cfg.t, bonusTime: cfg.bt, pts: {correct: cfg.pc, bonus: cfg.pb},
+    matchGrade: cfg.match, hideWord: true, used: {}, cur: null, log: [], finished: false
+  };
+}
+const other = i => 1 - i;
+
+function stageModel() {
+  const c = S.cur, w = c ? WORDS[c.id] : null;
+  const board = WORDS.map(x => { const u = S.used[x.id]; return u ? u.status : ""; });
+  return {
+    players: S.players.map(p => ({name: p.name, grade: p.grade, score: p.score})),
+    turn: S.turn, pts: S.pts, board, finished: S.finished,
+    doneCount: Object.values(S.used).filter(u => u.status !== "live").length,
+    cur: c ? {
+      num: c.id + 1, grade: w.g, phase: c.phase, speller: c.speller, owner: c.owner,
+      endsAt: c.endsAt, paused: c.paused, remaining: c.remaining,
+      limit: c.phase === "bonus" ? S.bonusTime : S.timeLimit,
+      show: { pos: c.show.pos ? w.pos : null, def: c.show.def ? w.def : null, sent: c.show.sent ? blankSentence(w.sent, w.w) : null, origin: c.show.origin ? w.origin : null },
+      // the actual word is only sent to the shared screen once the round is over
+      reveal: c.phase === "reveal" ? {w: w.w, say: w.say, syl: w.syl, pos: w.pos, def: w.def, sent: w.sent, origin: w.origin, tip: w.tip} : null,
+      result: c.result || null
+    } : null
+  };
+}
+function sync() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {}
+  if (!S) return;
+  const m = stageModel(), msg = {type: "model", model: m};
+  try { localStorage.setItem(KEY + ".stage", JSON.stringify(m)); } catch (_) {}
+  if (bc) bc.postMessage(msg);
+  try { if (stageWin && !stageWin.closed) stageWin.postMessage(msg, "*"); } catch (_) {}
+}
+const onHello = d => { if (d && d.type === "hello" && S) sync(); };
+if (bc) bc.addEventListener("message", e => onHello(e.data));
+window.addEventListener("message", e => onHello(e.data));
+
+function commit() { sync(); renderHost(); }
+
+/* ---------- game actions ---------- */
+function startWord(id) {
+  if (S.finished) return;
+  if (S.cur && S.cur.phase !== "reveal") return toast("Finish the current word first");
+  if (S.used[id] && S.used[id].status !== "live") return toast("That word has already been used");
+  if (S.cur && S.cur.phase === "reveal") finishReveal(false);
+  S.cur = {id, owner: S.turn, speller: S.turn, phase: "spell", endsAt: Date.now() + S.timeLimit * 1000, paused: false, remaining: 0, show: {}};
+  S.used[id] = {status: "live", by: S.turn};
+  lastBeep = -1; sfx.start(); commit();
+}
+function drawRandom() {
+  const g = S.players[S.turn].grade;
+  let pool = WORDS.filter(w => !S.used[w.id] && (!S.matchGrade || w.g == g));
+  if (!pool.length) pool = WORDS.filter(w => !S.used[w.id]);
+  if (!pool.length) return toast("All 50 words have been used!");
+  startWord(pool[Math.floor(Math.random() * pool.length)].id);
+}
+function logIt(cls, text) { S.log.unshift({cls, text, t: new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}); }
+function markCorrect() {
+  const c = S.cur; if (!c || c.phase === "reveal") return;
+  const p = S.players[c.speller], w = WORDS[c.id].w;
+  if (c.phase === "spell") {
+    p.score += S.pts.correct; p.correct++; S.used[c.id] = {status: "correct", by: c.speller};
+    c.result = {type: "correct", by: c.speller}; logIt("ok", `${p.name} spelled “${w}” ✓ (+${S.pts.correct})`);
+  } else {
+    p.score += S.pts.bonus; p.bonus++; S.used[c.id] = {status: "bonus", by: c.speller};
+    c.result = {type: "bonus", by: c.speller}; logIt("bon", `${p.name} stole “${w}” ★ (+${S.pts.bonus})`);
+  }
+  c.phase = "reveal"; sfx.ok(); commit();
+}
+function markWrong(timeout) {
+  const c = S.cur; if (!c || c.phase === "reveal") return;
+  const p = S.players[c.speller], w = WORDS[c.id].w, why = timeout ? "ran out of time on" : "misspelled";
+  if (c.phase === "spell") {
+    p.missed++; logIt("bad", `${p.name} ${why} “${w}” → bonus to ${S.players[other(c.speller)].name}`);
+    c.phase = "bonus"; c.speller = other(c.speller); c.endsAt = Date.now() + S.bonusTime * 1000; c.paused = false;
+    toast(`⭐ Bonus chance for ${S.players[c.speller].name}!`);
+  } else {
+    logIt("bad", `${p.name} ${why} the bonus — nobody scores “${w}”`);
+    S.used[c.id] = {status: "missed", by: null}; c.result = {type: "missed", by: null}; c.phase = "reveal";
+  }
+  lastBeep = -1; timeout ? sfx.buzz() : sfx.bad(); commit();
+}
+function finishReveal(doCommit = true) {
+  if (!S.cur) return;
+  S.turn = other(S.cur.owner); S.cur = null;
+  if (!WORDS.some(w => !S.used[w.id])) S.finished = true;
+  if (doCommit) commit();
+}
+function skipWord() {
+  const c = S.cur; if (!c || c.phase === "reveal") return;
+  if (!confirm("Skip this word? It will be crossed out and the same speller gets a new word.")) return;
+  S.used[c.id] = {status: "skipped", by: null}; logIt("", `Skipped “${WORDS[c.id].w}”`);
+  S.cur = null; commit();
+}
+function togglePause() {
+  const c = S.cur; if (!c || c.phase === "reveal") return;
+  if (c.paused) { c.endsAt = Date.now() + c.remaining; c.paused = false; }
+  else { c.remaining = Math.max(0, c.endsAt - Date.now()); c.paused = true; }
+  commit();
+}
+function addTime(sec) { const c = S.cur; if (!c || c.phase === "reveal") return; if (c.paused) c.remaining += sec * 1000; else c.endsAt += sec * 1000; commit(); }
+function toggleClue(k) { const c = S.cur; if (!c || c.phase === "reveal") return; c.show[k] = !c.show[k]; commit(); }
+function adjust(i, d) { S.players[i].score = Math.max(0, S.players[i].score + d); logIt("", `Manual adjustment: ${S.players[i].name} ${d > 0 ? "+" : ""}${d}`); commit(); }
+function endGame() { if (!confirm("End the bee now and show the winner on the stage?")) return; if (S.cur && S.cur.phase !== "reveal") { S.used[S.cur.id] = {status: "skipped"}; } S.cur = null; S.finished = true; commit(); }
+function openStage() {
+  stageWin = window.open(location.pathname + location.search + "#stage", "beeStage", "width=1280,height=800");
+  if (!stageWin) return toast("Pop-up blocked — allow pop-ups for this page");
+  setTimeout(sync, 400); setTimeout(sync, 1200);
+}
+function exportCSV() {
+  const rows = [["#", "Word", "Grade", "Result", "Speller"]];
+  WORDS.forEach(w => { const u = S.used[w.id]; if (u && u.status !== "live") rows.push([w.id + 1, w.w, w.g, u.status, u.by != null ? S.players[u.by].name : ""]); });
+  rows.push([], ["Player", "Grade", "Score", "Correct", "Bonus steals", "Missed"]);
+  S.players.forEach(p => rows.push([p.name, p.grade, p.score, p.correct, p.bonus, p.missed]));
+  const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
+  a.download = `spelling-bee-results-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+}
+
+/* ---------- setup modal ---------- */
+function showSetup() {
+  const p = S ? S.players : [{name: "", grade: 7}, {name: "", grade: 4}];
+  const bg = document.createElement("div"); bg.className = "modalBg";
+  bg.innerHTML = `<div class="modal">
+    <h2 class="fred">🐝 New Spelling Bee</h2><p class="small" style="margin-top:0">50 words · 25 Grade 4 + 25 Grade 7 · Manitoba curriculum · Canadian spelling</p>
+    <div class="grid2">
+      <div><label>Speller 1 name</label><input id="n1" value="${esc(p[0].name)}" placeholder="e.g. Amara"></div>
+      <div><label>Speller 1 grade</label><select id="g1"><option value="4">Grade 4</option><option value="7">Grade 7</option></select></div>
+      <div><label>Speller 2 name</label><input id="n2" value="${esc(p[1].name)}" placeholder="e.g. Liam"></div>
+      <div><label>Speller 2 grade</label><select id="g2"><option value="4">Grade 4</option><option value="7">Grade 7</option></select></div>
+      <div><label>Time per word (seconds)</label><input id="t" type="number" min="10" max="300" value="${S ? S.timeLimit : 60}"></div>
+      <div><label>Bonus steal time (seconds)</label><input id="bt" type="number" min="5" max="120" value="${S ? S.bonusTime : 30}"></div>
+      <div><label>Points for a correct word</label><input id="pc" type="number" min="1" max="10" value="${S ? S.pts.correct : 2}"></div>
+      <div><label>Points for a bonus steal</label><input id="pb" type="number" min="1" max="10" value="${S ? S.pts.bonus : 1}"></div>
+      <div><label>Who goes first?</label><select id="first"><option value="0">Speller 1</option><option value="1">Speller 2</option></select></div>
+      <div><label>Random word draws</label><select id="match"><option value="1">Match each speller's grade</option><option value="0">Any word from the pool</option></select></div>
+    </div>
+    <div class="howto" style="margin-top:14px">
+      <b>Keeping the word secret while screen sharing:</b><br>
+      1. Click <b>Open Stage Screen</b> (top bar). A second window opens — it never shows the word until the round is over.<br>
+      2. In Zoom / Teams / Meet choose <b>Share → Window</b> and pick the <b>Stage</b> window only (not “Entire screen”).<br>
+      3. Keep this Host Console private. If you must share one screen only, leave <b>Privacy blur</b> on and press-and-hold <b>Peek</b> (or hold <b>P</b>) to see the word.
+    </div>
+    <div class="row" style="margin-top:16px">${S ? `<button class="btn-ghost" id="cancel">Cancel</button>` : ""}<button class="btn-honey" id="go">${S ? "Start a NEW bee (resets scores)" : "Start the bee 🐝"}</button></div>
+  </div>`;
+  document.body.appendChild(bg);
+  $("#g1", bg).value = p[0].grade; $("#g2", bg).value = p[1].grade;
+  if (S) { $("#first", bg).value = S.turn; $("#match", bg).value = S.matchGrade ? "1" : "0"; }
+  if ($("#cancel", bg)) $("#cancel", bg).onclick = () => bg.remove();
+  $("#go", bg).onclick = () => {
+    const v = id => $("#" + id, bg).value;
+    const num = (id, d) => Math.max(1, parseInt(v(id), 10) || d);
+    S = newGame({n1: v("n1").trim() || "Speller 1", n2: v("n2").trim() || "Speller 2", g1: +v("g1"), g2: +v("g2"),
+      t: num("t", 60), bt: num("bt", 30), pc: num("pc", 2), pb: num("pb", 1), first: +v("first"), match: v("match") === "1"});
+    bg.remove(); commit();
+  };
+}
+
+/* ---------- host render ---------- */
+function renderHost() {
+  if (!S) { app.innerHTML = ""; showSetup(); return; }
+  const c = S.cur, w = c ? WORDS[c.id] : null, P = S.players;
+  const live = c && c.phase !== "reveal";
+  const whoIdx = c ? c.speller : S.turn;
+  const phaseLbl = S.finished ? ["reveal", "Bee finished"] : !c ? ["idle", "Ready to draw"] : c.phase === "spell" ? ["spell", "Spelling"] : c.phase === "bonus" ? ["bonus", "Bonus steal"] : ["reveal", "Answer revealed"];
+  const locked = S.hideWord && !peeking;
+
+  const wordCard = !c ? `<div class="empty">${S.finished ? "🏆 The bee is over. Export results or start a new bee." : `<div class="fred" style="font-size:22px;color:var(--ink)">${esc(P[S.turn].name)}'s turn</div>Press <b>Draw word</b> or pick a tile below.`}</div>` : `
+    <div class="secretWrap ${locked ? "locked" : ""}">
+      <div class="secret">
+        <div class="row" style="align-items:center;justify-content:space-between"><span class="pill g${w.g}">#${w.id + 1} · Grade ${w.g}</span><span class="small">${w.w.length} letters</span></div>
+        <div class="theWord">${esc(w.w)}</div>
+        <div class="meta">
+          <div>Pronounce</div><div class="say">${esc(w.say)} <span class="small">(${esc(w.syl)})</span></div>
+          <div>Part of speech</div><div>${esc(w.pos)}</div>
+          <div>Definition</div><div>${esc(w.def)}</div>
+          <div>Sentence</div><div>${esc(w.sent)}</div>
+          <div>Origin</div><div>${esc(w.origin)}</div>
+          <div>Spelling tip</div><div>${esc(w.tip)}</div>
+        </div>
+      </div>
+      <div class="peekCover"><div><button class="peekBtn" id="peek">👁 Press &amp; hold to peek</button><div class="small" style="margin-top:8px">or hold the <b>P</b> key</div></div></div>
+    </div>`;
+
+  const controls = !c ? `
+      <div class="row bigbtns"><button class="btn-honey" id="draw" ${S.finished ? "disabled" : ""}>🎲 Draw word for ${esc(P[S.turn].name)}<span class="kbd">N</span></button></div>`
+    : c.phase === "reveal" ? `
+      <div class="row bigbtns"><button class="btn-honey" id="next">Next speller: ${esc(P[other(c.owner)].name)} ▶<span class="kbd">N</span></button></div>
+      <p class="small">The answer, meaning, origin and spelling tip are now showing on the Stage screen.</p>`
+    : `
+      <div class="timerRow"><div class="tbig" id="htime">--</div><div class="tbar" id="hbarW"><i id="hbar"></i></div></div>
+      <div class="row bigbtns">
+        <button class="btn-ok" id="ok">✓ Correct<span class="kbd">C</span></button>
+        <button class="btn-bad" id="bad">✗ Incorrect<span class="kbd">X</span></button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="pause">${c.paused ? "▶ Resume" : "⏸ Pause"}<span class="kbd">Space</span></button>
+        <button id="plus">+15 s</button>
+        <button id="skip">⤼ Skip word</button>
+      </div>
+      <h3 style="margin-top:16px">Pronouncer tools</h3>
+      <div class="row">
+        <button id="sayW">🔊 Say word<span class="kbd">S</span></button>
+        <button id="saySent">🔊 Say sentence</button>
+      </div>
+      <div class="small" style="margin-top:10px">When the speller asks, show a clue on the Stage (the word is blanked out):</div>
+      <div class="reveals">
+        ${[["pos","Part of speech"],["def","Definition"],["sent","Sentence"],["origin","Origin"]].map(([k, l]) => `<button data-clue="${k}" class="${c.show[k] ? "on" : ""}">${c.show[k] ? "✓ " : ""}${l}</button>`).join("")}
+      </div>`;
+
+  const tiles = WORDS.map(x => {
+    const u = S.used[x.id], st = u ? u.status : "";
+    return `<button class="tile g${x.g} ${st ? (st === "live" ? "live" : "used " + st) : ""}" data-id="${x.id}" ${st && st !== "live" ? "disabled" : ""}><span class="n">${x.id + 1}</span><span class="ws">${esc(x.w)}</span></button>`;
+  }).join("");
+  const remaining = WORDS.filter(x => !S.used[x.id]).length;
+
+  app.innerHTML = `<div class="host">
+    <div class="topbar">
+      <div class="brand"><div class="hex">🐝</div>Spelling Bee <span class="small" style="font-family:Inter;font-weight:500">Host Console</span></div>
+      <div class="sp"></div>
+      <label class="privacy ${S.hideWord ? "on" : "off"}" style="margin:0;cursor:pointer"><input type="checkbox" id="priv" style="width:auto" ${S.hideWord ? "checked" : ""}> ${S.hideWord ? "🔒 Privacy blur ON" : "🔓 Word visible on this screen"}</label>
+      <button class="btn-honey" id="stageBtn">📺 Open Stage Screen</button>
+      <button id="csv">⬇ Results</button>
+      <button id="endB">🏁 End bee</button>
+      <button id="setup">⚙ New bee</button>
+    </div>
+    <div class="main">
+      <div class="col">
+        <div class="card">
+          <div class="turnbar"><span class="phase ${phaseLbl[0]}">${phaseLbl[1]}</span><span class="who">${S.finished ? "" : `${esc(P[whoIdx].name)} <span class="pill g${P[whoIdx].grade}">Grade ${P[whoIdx].grade}</span>`}</span></div>
+          ${wordCard}
+          <div style="margin-top:14px">${controls}</div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <div class="boardHead"><h3 style="margin:0">Word pool — ${remaining} of ${WORDS.length} left</h3><span class="small"><span class="g4">■ Grade 4</span> &nbsp; <span class="g7">■ Grade 7</span> &nbsp; ✓ correct · ★ bonus · ✗ missed · ⤼ skipped</span></div>
+          <div class="board ${S.hideWord ? "masked" : ""}" id="board">${tiles}</div>
+          ${S.hideWord ? `<p class="small">Words on the tiles are blurred while Privacy blur is on. Click a numbered tile to give that word.</p>` : ""}
+        </div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <h3>Scoreboard</h3>
+          <div class="scores">${P.map((p, i) => `
+            <div class="sc ${!S.finished && i === whoIdx ? "active" : ""}">
+              <div class="adj"><button data-adj="${i}:-1">−</button><button data-adj="${i}:1">+</button></div>
+              <div class="nm">${esc(p.name)}</div><span class="pill g${p.grade}">Grade ${p.grade}</span>
+              <div class="pts" style="margin-top:8px">${p.score}</div>
+              <div class="st">✓ ${p.correct} correct · ★ ${p.bonus} steals · ✗ ${p.missed} missed</div>
+            </div>`).join("")}</div>
+          <p class="small" style="margin-bottom:0">Correct = +${S.pts.correct} · Bonus steal = +${S.pts.bonus} · ${S.timeLimit}s per word, ${S.bonusTime}s to steal</p>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>How a round works</h3>
+          <div class="howto">
+            1. <b>Draw</b> a word — it's crossed out of the pool immediately and the timer starts.<br>
+            2. Press <b>Say word</b> (or read the pronunciation). Show clues if the speller asks.<br>
+            3. Mark <b>Correct</b> or <b>Incorrect</b>. Wrong or out of time → the other speller gets a <b>bonus steal</b> with a shorter timer.<br>
+            4. The Stage reveals the correct spelling, meaning, origin and a spelling tip. Press <b>Next</b>.
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Score log</h3>
+          <div class="log">${S.log.length ? S.log.map(l => `<div class="${l.cls}"><span class="small">${l.t}</span> &nbsp;${esc(l.text)}</div>`).join("") : `<div class="small">No words spelled yet.</div>`}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  const on = (id, fn) => { const el = $("#" + id); if (el) el.onclick = fn; };
+  on("draw", drawRandom); on("next", () => finishReveal()); on("ok", markCorrect); on("bad", () => markWrong(false));
+  on("pause", togglePause); on("plus", () => addTime(15)); on("skip", skipWord);
+  on("sayW", () => speak(w.w)); on("saySent", () => speak(w.sent));
+  on("stageBtn", openStage); on("csv", exportCSV); on("setup", showSetup); on("endB", endGame);
+  $("#priv").onchange = e => { S.hideWord = e.target.checked; commit(); };
+  document.querySelectorAll("[data-clue]").forEach(b => b.onclick = () => toggleClue(b.dataset.clue));
+  document.querySelectorAll("[data-adj]").forEach(b => b.onclick = () => { const [i, d] = b.dataset.adj.split(":").map(Number); adjust(i, d); });
+  $("#board").onclick = e => { const t = e.target.closest(".tile"); if (t && !t.disabled) startWord(+t.dataset.id); };
+  const pk = $("#peek");
+  if (pk) {
+    const show = e => { e.preventDefault(); peeking = true; $(".secretWrap").classList.remove("locked"); };
+    const hide = () => { peeking = false; const sw = $(".secretWrap"); if (sw && S.hideWord) sw.classList.add("locked"); };
+    pk.addEventListener("pointerdown", show);
+    window.addEventListener("pointerup", hide, {once: true});
+    $(".secretWrap").addEventListener("pointerleave", hide);
+  }
+  hostTick(true);
+}
+
+function hostTick(once) {
+  const c = S && S.cur;
+  if (c && (c.phase === "spell" || c.phase === "bonus")) {
+    const lim = (c.phase === "bonus" ? S.bonusTime : S.timeLimit) * 1000;
+    const rem = Math.max(0, c.paused ? c.remaining : c.endsAt - Date.now());
+    const secs = Math.ceil(rem / 1000);
+    const t = $("#htime"), b = $("#hbar");
+    if (t) { t.textContent = (c.paused ? "⏸ " : "") + secs + "s"; b.style.width = (100 * rem / lim) + "%"; $("#hbarW").classList.toggle("warn", secs <= 5); }
+    if (!once && !c.paused) {
+      if (secs <= 5 && secs > 0 && secs !== lastBeep) { lastBeep = secs; sfx.tick(); }
+      if (rem <= 0) markWrong(true);
+    }
+  }
+}
+setInterval(() => hostTick(false), 200);
+
+/* ---------- keyboard ---------- */
+document.addEventListener("keydown", e => {
+  if (!S || e.target.matches("input,select,textarea") || $(".modalBg")) return;
+  const k = e.key.toLowerCase(), c = S.cur;
+  if (k === "p" && S.hideWord && !peeking) { peeking = true; const sw = $(".secretWrap"); if (sw) sw.classList.remove("locked"); }
+  else if (k === " ") { e.preventDefault(); togglePause(); }
+  else if (k === "c") markCorrect();
+  else if (k === "x") markWrong(false);
+  else if (k === "s" && c) speak(WORDS[c.id].w);
+  else if (k === "n") { if (!c) drawRandom(); else if (c.phase === "reveal") finishReveal(); }
+});
+document.addEventListener("keyup", e => {
+  if (e.key.toLowerCase() === "p" && peeking) { peeking = false; const sw = $(".secretWrap"); if (sw && S.hideWord) sw.classList.add("locked"); }
+});
+window.addEventListener("beforeunload", () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {} });
+
+renderHost(); sync();
+})();
+</script>
+</body>
+</html>
