@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-CA">
+<html lang="en-CA" style="color-scheme:dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,6 +20,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.06;b
 h1,h2,h3,.fred{font-family:Fredoka,Inter,sans-serif}
 button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:10px 14px;background:var(--panel);color:var(--ink);border:1px solid var(--line);transition:transform .08s,background .15s,opacity .15s}
 button:hover{background:#3b2e18}
+.btnlink{display:inline-block;text-decoration:none;border-radius:12px;padding:10px 14px}
 button:active{transform:scale(.97)}
 button:disabled{opacity:.35;cursor:not-allowed}
 .btn-honey{background:linear-gradient(180deg,var(--honey2),var(--honey));color:#2a1a00;border:0;font-weight:700}
@@ -171,6 +172,7 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
 const WORDS = window.WORDS;
 const KEY = "mbBee.state.v1";
 const IS_STAGE = location.hash === "#stage";
+const STAGE_URL = window.BEE_STAGE_URL || "";
 const bc = "BroadcastChannel" in window ? new BroadcastChannel("mbBee") : null;
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -423,7 +425,6 @@ function finishReveal(doCommit = true) {
 }
 function skipWord() {
   const c = S.cur; if (!c || c.phase === "reveal") return;
-  if (!confirm("Skip this word? It will be crossed out and the same speller gets a new word.")) return;
   S.used[c.id] = {status: "skipped", by: null}; logIt("", `Skipped “${WORDS[c.id].w}”`);
   S.cur = null; commit();
 }
@@ -436,8 +437,18 @@ function togglePause() {
 function addTime(sec) { const c = S.cur; if (!c || c.phase === "reveal") return; if (c.paused) c.remaining += sec * 1000; else c.endsAt += sec * 1000; commit(); }
 function toggleClue(k) { const c = S.cur; if (!c || c.phase === "reveal") return; c.show[k] = !c.show[k]; commit(); }
 function adjust(i, d) { S.players[i].score = Math.max(0, S.players[i].score + d); logIt("", `Manual adjustment: ${S.players[i].name} ${d > 0 ? "+" : ""}${d}`); commit(); }
-function endGame() { if (!confirm("End the bee now and show the winner on the stage?")) return; if (S.cur && S.cur.phase !== "reveal") { S.used[S.cur.id] = {status: "skipped"}; } S.cur = null; S.finished = true; commit(); }
-function openStage() {
+function endGame() { if (S.cur && S.cur.phase !== "reveal") { S.used[S.cur.id] = {status: "skipped"}; } S.cur = null; S.finished = true; commit(); }
+function twoStep(el, fn) {
+  if (!el) return;
+  el.onclick = () => {
+    if (el.dataset.armed) return fn();
+    const old = el.innerHTML; el.dataset.armed = "1"; el.innerHTML = "Click again to confirm"; el.classList.add("btn-bad");
+    setTimeout(() => { if (el.isConnected) { delete el.dataset.armed; el.innerHTML = old; el.classList.remove("btn-bad"); } }, 3000);
+  };
+}
+function openStage(e) {
+  if (STAGE_URL) return; // hosted: the button is a real link that opens the stage in a new tab
+  e.preventDefault();
   stageWin = window.open(location.pathname + location.search + "#stage", "beeStage", "width=1280,height=800");
   if (!stageWin) return toast("Pop-up blocked — allow pop-ups for this page");
   setTimeout(sync, 400); setTimeout(sync, 1200);
@@ -448,8 +459,22 @@ function exportCSV() {
   rows.push([], ["Player", "Grade", "Score", "Correct", "Bonus steals", "Missed"]);
   S.players.forEach(p => rows.push([p.name, p.grade, p.score, p.correct, p.bonus, p.missed]));
   const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
-  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
-  a.download = `spelling-bee-results-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  const bg = document.createElement("div"); bg.className = "modalBg";
+  bg.innerHTML = `<div class="modal"><h2 class="fred">📋 Results</h2>
+    <div class="scores" style="margin:10px 0">${S.players.map(p => `<div class="sc"><div class="nm">${esc(p.name)}</div><span class="pill g${p.grade}">Grade ${p.grade}</span><div class="pts" style="margin-top:8px">${p.score}</div><div class="st">✓ ${p.correct} correct · ★ ${p.bonus} steals · ✗ ${p.missed} missed</div></div>`).join("")}</div>
+    <label for="csvText">Results as CSV (paste into Excel or Google Sheets)</label>
+    <textarea id="csvText" readonly style="width:100%;height:180px;background:#120e07;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px;font:12px ui-monospace,monospace">${esc(csv)}</textarea>
+    <div class="row" style="margin-top:12px"><button id="rClose">Close</button>${STAGE_URL ? "" : `<button id="rDl">⬇ Download file</button>`}<button class="btn-honey" id="rCopy">Copy results</button></div></div>`;
+  document.body.appendChild(bg);
+  $("#rClose", bg).onclick = () => bg.remove();
+  $("#rCopy", bg).onclick = () => {
+    const ta = $("#csvText", bg);
+    (navigator.clipboard ? navigator.clipboard.writeText(csv) : Promise.reject()).then(() => toast("Copied — paste into a spreadsheet"), () => { ta.select(); toast("Selected — press Ctrl+C to copy"); });
+  };
+  if ($("#rDl", bg)) $("#rDl", bg).onclick = () => {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
+    a.download = `spelling-bee-results-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  };
 }
 
 /* ---------- setup modal ---------- */
@@ -554,8 +579,8 @@ function renderHost() {
       <div class="brand"><div class="hex">🐝</div>Spelling Bee <span class="small" style="font-family:Inter;font-weight:500">Host Console</span></div>
       <div class="sp"></div>
       <label class="privacy ${S.hideWord ? "on" : "off"}" style="margin:0;cursor:pointer"><input type="checkbox" id="priv" style="width:auto" ${S.hideWord ? "checked" : ""}> ${S.hideWord ? "🔒 Privacy blur ON" : "🔓 Word visible on this screen"}</label>
-      <button class="btn-honey" id="stageBtn">📺 Open Stage Screen</button>
-      <button id="csv">⬇ Results</button>
+      <a class="btn-honey btnlink" id="stageBtn" href="${STAGE_URL || "#stage"}" target="_blank" rel="noopener">📺 Open Stage Screen</a>
+      <button id="csv">📋 Results</button>
       <button id="endB">🏁 End bee</button>
       <button id="setup">⚙ New bee</button>
     </div>
@@ -603,9 +628,9 @@ function renderHost() {
 
   const on = (id, fn) => { const el = $("#" + id); if (el) el.onclick = fn; };
   on("draw", drawRandom); on("next", () => finishReveal()); on("ok", markCorrect); on("bad", () => markWrong(false));
-  on("pause", togglePause); on("plus", () => addTime(15)); on("skip", skipWord);
+  on("pause", togglePause); on("plus", () => addTime(15)); twoStep($("#skip"), skipWord);
   on("sayW", () => speak(w.w)); on("saySent", () => speak(w.sent));
-  on("stageBtn", openStage); on("csv", exportCSV); on("setup", showSetup); on("endB", endGame);
+  on("stageBtn", openStage); on("csv", exportCSV); on("setup", showSetup); twoStep($("#endB"), endGame);
   $("#priv").onchange = e => { S.hideWord = e.target.checked; commit(); };
   document.querySelectorAll("[data-clue]").forEach(b => b.onclick = () => toggleClue(b.dataset.clue));
   document.querySelectorAll("[data-adj]").forEach(b => b.onclick = () => { const [i, d] = b.dataset.adj.split(":").map(Number); adjust(i, d); });

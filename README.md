@@ -15,7 +15,7 @@ Draw → word is crossed out → timer runs → **Correct** (+2) or **Incorrect 
 
 Shortcuts: `N` draw/next · `C` correct · `X` incorrect · `Space` pause · `S` say word · hold `P` peek.
 
-Scores are saved automatically in the browser. **⬇ Results** downloads a CSV.
+Scores are saved automatically in the browser. **📋 Results** shows the scores and lets you copy or download them as a CSV.
 
 ## Word pool
 `words.js` holds 50 words (25 Grade 4, 25 Grade 7). Each word has its pronunciation, syllables, part of speech, definition, an example sentence, origin and a spelling tip.
